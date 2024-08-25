@@ -33,6 +33,7 @@ bool SaveBitmapToFile(HBITMAP hBitmap, const std::string& filePath) {
     DWORD bmpSize = ((bmpInfo.bmiHeader.biWidth * bmpInfo.bmiHeader.biBitCount + 31) / 32) * 4 * abs(bmpInfo.bmiHeader.biHeight);
     BYTE* bmpData = new BYTE[bmpSize];
 
+    bool success = false;
     if (GetDIBits(hdcMem, hBitmap, 0, abs(bmpInfo.bmiHeader.biHeight), bmpData, &bmpInfo, DIB_RGB_COLORS)) {
         std::ofstream file(filePath, std::ios::binary);
         if (file) {
@@ -47,15 +48,13 @@ bool SaveBitmapToFile(HBITMAP hBitmap, const std::string& filePath) {
             file.write(reinterpret_cast<char*>(&bmpInfo.bmiHeader), sizeof(BITMAPINFOHEADER));
             file.write(reinterpret_cast<char*>(bmpData), bmpSize);
             file.close();
+            success = true;
         }
-        delete[] bmpData;
-        DeleteDC(hdcMem);
-        return true;
     }
 
     delete[] bmpData;
     DeleteDC(hdcMem);
-    return false;
+    return success;
 }
 
 // 捕获窗口的内容
@@ -68,15 +67,9 @@ bool CaptureWindow(HWND hWnd, const std::string& filePath) {
     HBITMAP hBitmap = CreateCompatibleBitmap(hdcWindow, rc.right - rc.left, rc.bottom - rc.top);
     HGDIOBJ oldBitmap = SelectObject(hdcMem, hBitmap);
 
+    bool success = false;
     if (BitBlt(hdcMem, 0, 0, rc.right - rc.left, rc.bottom - rc.top, hdcWindow, 0, 0, SRCCOPY)) {
-        bool success = SaveBitmapToFile(hBitmap, filePath);
-
-        SelectObject(hdcMem, oldBitmap);
-        DeleteObject(hBitmap);
-        DeleteDC(hdcMem);
-        ReleaseDC(hWnd, hdcWindow);
-
-        return success;
+        success = SaveBitmapToFile(hBitmap, filePath);
     }
 
     SelectObject(hdcMem, oldBitmap);
@@ -84,30 +77,27 @@ bool CaptureWindow(HWND hWnd, const std::string& filePath) {
     DeleteDC(hdcMem);
     ReleaseDC(hWnd, hdcWindow);
 
-    return false;
+    return success;
 }
 
 // 读取配置文件中的 homework 项
-int ReadHomeworkConfig(const std::string& configFilePath) {
+bool ReadHomeworkConfig(const std::string& configFilePath) {
     std::ifstream configFile(configFilePath);
     if (!configFile.is_open()) {
         std::cerr << "无法打开配置文件。" << std::endl;
-        return 0;
+        return false;
     }
 
     json config;
     configFile >> config;
 
-    return config.value("homework", 0);
+    return config.value("homework", false);
 }
 
 // 修改后的函数签名，替换 main
-void CaptureScreenshot() {
-    std::string configFilePath = "config.json";
-    int homework = ReadHomeworkConfig(configFilePath);
-
-    if (homework == 0) {
-        std::cout << "不进行截图，配置中的 homework 值为 0。" << std::endl;
+void CaptureScreenshot(bool shouldCapture) {
+    if (!shouldCapture) {
+        std::cout << "不进行截图，配置中的 homework 值为 false。" << std::endl;
         return;
     }
 
