@@ -4,6 +4,7 @@
 #include <string>
 #include <cstdio>
 #include "json.hpp"
+#include "screenshot.hpp" // 包含头文件
 
 using json = nlohmann::json;
 
@@ -57,7 +58,7 @@ bool SaveBitmapToFile(HBITMAP hBitmap, const std::string& filePath) {
     return false;
 }
 
-// 捕获作业条的内容
+// 捕获窗口的内容
 bool CaptureWindow(HWND hWnd, const std::string& filePath) {
     RECT rc;
     GetWindowRect(hWnd, &rc);
@@ -100,13 +101,14 @@ int ReadHomeworkConfig(const std::string& configFilePath) {
     return config.value("homework", 0);
 }
 
-int main() {
+// 修改后的函数签名，替换 main
+void CaptureScreenshot() {
     std::string configFilePath = "config.json";
     int homework = ReadHomeworkConfig(configFilePath);
 
     if (homework == 0) {
         std::cout << "不进行截图，配置中的 homework 值为 0。" << std::endl;
-        return 0;
+        return;
     }
 
     std::wstring windowTitle = L"作业";
@@ -116,6 +118,11 @@ int main() {
         std::cout << "找到窗口，开始截图。" << std::endl;
         if (CaptureWindow(hWnd, "screenshot.bmp")) {
             std::cout << "截图已保存为 screenshot.bmp。" << std::endl;
+
+            // 创建一个文件来指示截图完成
+            std::ofstream doneFile("screenshot_done.txt");
+            doneFile << "done";
+            doneFile.close();
         }
         else {
             std::cout << "保存 screenshot.bmp 失败。" << std::endl;
@@ -124,5 +131,4 @@ int main() {
     else {
         std::cout << "未找到指定的窗口。" << std::endl;
     }
-    return 0;
 }
