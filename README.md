@@ -23,4 +23,3 @@ ClassZone 是一款面向微信的每日班级信息报告机器人，与多款�
 
 ### 第三方库
 - [Nlohmann/Json](https://github.com/nlohmann/json)
-- [pngout](https://github.com/imagemin/pngout-bin)
