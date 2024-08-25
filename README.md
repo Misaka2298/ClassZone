@@ -16,6 +16,11 @@ ClassZone 是一款面向微信的每日班级信息报告机器人，与多款�
 
 受限于本人的技术力，部分代码来源于AIGC。
 
+### 分支说明
+本项目分为**ClassClient**与**Server**两个分支。
+**ClassClient**为在班级运行的版本，用来每天截图作业条并上传至Server。
+**Server**为在服务器运行的版本，用来实现其他功能。
+
 ### 功能
 - [ ] 每日自动往指定群聊中发送次日课程表，从[ClassIsland](https://github.com/ClassIsland/ClassIsland)或[ElectronClassSchedule](https://github.com/EnderWolf006/ElectronClassSchedule)的配置文件中获取课程表。
 - [ ] 每日自动往指定群聊中发送今日作业条，从[StickyHomeworks](https://github.com/HelloWRC/StickyHomeworks)中获取作业条。
