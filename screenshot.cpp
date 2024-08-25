@@ -7,31 +7,14 @@
 
 using json = nlohmann::json;
 
-// 删除指定的文件
+// 删除文件
 void DeleteFileIfExists(const std::string& filePath) {
     if (std::remove(filePath.c_str()) != 0) {
         std::cerr << "无法删除文件 " << filePath << "." << std::endl;
     }
 }
 
-// 使用系统命令行调用 PngOut 进行 PNG 转换
-void ConvertBmpToPng(const std::string& bmpFilePath, const std::string& pngFilePath) {
-    // 删除目标文件（如果存在）
-    DeleteFileIfExists(pngFilePath);
-
-    // 使用 PngOut 进行转换，并强制覆盖，设置最低压缩级别
-    std::string command = "pngout \"" + bmpFilePath + "\" \"" + pngFilePath + "\" -force -s0";
-    int result = system(command.c_str());
-
-    if (result == 0) {
-        std::cout << "截图已保存为 " << pngFilePath << "." << std::endl;
-    }
-    else {
-        std::cerr << "保存 " << pngFilePath << " 失败。" << std::endl;
-    }
-}
-
-// 保存 HBITMAP 为 BMP 文件
+// 保存 HBITMAP 为 BMP
 bool SaveBitmapToFile(HBITMAP hBitmap, const std::string& filePath) {
     BITMAP bmp;
     BITMAPINFO bmpInfo;
@@ -43,13 +26,13 @@ bool SaveBitmapToFile(HBITMAP hBitmap, const std::string& filePath) {
     bmpInfo.bmiHeader.biWidth = bmp.bmWidth;
     bmpInfo.bmiHeader.biHeight = bmp.bmHeight;
     bmpInfo.bmiHeader.biPlanes = 1;
-    bmpInfo.bmiHeader.biBitCount = bmp.bmBitsPixel;
+    bmpInfo.bmiHeader.biBitCount = 32;
     bmpInfo.bmiHeader.biCompression = BI_RGB;
 
-    DWORD bmpSize = ((bmp.bmWidth * bmp.bmBitsPixel + 31) / 32) * 4 * bmp.bmHeight;
+    DWORD bmpSize = ((bmpInfo.bmiHeader.biWidth * bmpInfo.bmiHeader.biBitCount + 31) / 32) * 4 * abs(bmpInfo.bmiHeader.biHeight);
     BYTE* bmpData = new BYTE[bmpSize];
 
-    if (GetDIBits(hdcMem, hBitmap, 0, bmp.bmHeight, bmpData, &bmpInfo, DIB_RGB_COLORS)) {
+    if (GetDIBits(hdcMem, hBitmap, 0, abs(bmpInfo.bmiHeader.biHeight), bmpData, &bmpInfo, DIB_RGB_COLORS)) {
         std::ofstream file(filePath, std::ios::binary);
         if (file) {
             BITMAPFILEHEADER bfh;
@@ -74,33 +57,31 @@ bool SaveBitmapToFile(HBITMAP hBitmap, const std::string& filePath) {
     return false;
 }
 
-// 捕获指定窗口的内容
+// 捕获作业条的内容
 bool CaptureWindow(HWND hWnd, const std::string& filePath) {
     RECT rc;
     GetWindowRect(hWnd, &rc);
 
-    HDC hdcWindow = GetDC(hWnd);  // 获取窗口的设备上下文
-    HDC hdcMem = CreateCompatibleDC(hdcWindow);  // 创建与窗口设备上下文兼容的内存设备上下文
-    HBITMAP hBitmap = CreateCompatibleBitmap(hdcWindow, rc.right - rc.left, rc.bottom - rc.top);  // 创建兼容的位图
-    HGDIOBJ oldBitmap = SelectObject(hdcMem, hBitmap);  // 选择位图对象到内存设备上下文中
+    HDC hdcWindow = GetDC(hWnd);
+    HDC hdcMem = CreateCompatibleDC(hdcWindow);
+    HBITMAP hBitmap = CreateCompatibleBitmap(hdcWindow, rc.right - rc.left, rc.bottom - rc.top);
+    HGDIOBJ oldBitmap = SelectObject(hdcMem, hBitmap);
 
-    // 使用 PrintWindow 捕获窗口内容
-    if (PrintWindow(hWnd, hdcMem, PW_CLIENTONLY)) {
-        bool success = SaveBitmapToFile(hBitmap, filePath);  // 保存为 BMP 文件
+    if (BitBlt(hdcMem, 0, 0, rc.right - rc.left, rc.bottom - rc.top, hdcWindow, 0, 0, SRCCOPY)) {
+        bool success = SaveBitmapToFile(hBitmap, filePath);
 
-        SelectObject(hdcMem, oldBitmap);  // 恢复之前的位图对象
-        DeleteObject(hBitmap);  // 删除位图对象
-        DeleteDC(hdcMem);  // 删除内存设备上下文
-        ReleaseDC(hWnd, hdcWindow);  // 释放窗口的设备上下文
+        SelectObject(hdcMem, oldBitmap);
+        DeleteObject(hBitmap);
+        DeleteDC(hdcMem);
+        ReleaseDC(hWnd, hdcWindow);
 
         return success;
     }
 
-    // 如果捕获失败，清理资源
-    SelectObject(hdcMem, oldBitmap);  // 恢复之前的位图对象
-    DeleteObject(hBitmap);  // 删除位图对象
-    DeleteDC(hdcMem);  // 删除内存设备上下文
-    ReleaseDC(hWnd, hdcWindow);  // 释放窗口的设备上下文
+    SelectObject(hdcMem, oldBitmap);
+    DeleteObject(hBitmap);
+    DeleteDC(hdcMem);
+    ReleaseDC(hWnd, hdcWindow);
 
     return false;
 }
@@ -128,7 +109,6 @@ int main() {
         return 0;
     }
 
-    // 硬编码窗口标题
     std::wstring windowTitle = L"作业";
     HWND hWnd = FindWindow(NULL, windowTitle.c_str());
 
@@ -136,7 +116,6 @@ int main() {
         std::cout << "找到窗口，开始截图。" << std::endl;
         if (CaptureWindow(hWnd, "screenshot.bmp")) {
             std::cout << "截图已保存为 screenshot.bmp。" << std::endl;
-            ConvertBmpToPng("screenshot.bmp", "screenshot.png");
         }
         else {
             std::cout << "保存 screenshot.bmp 失败。" << std::endl;
